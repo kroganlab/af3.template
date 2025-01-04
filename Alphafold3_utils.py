@@ -221,14 +221,13 @@ def af3_setupJob(job_id,
 
             # add protein template info...
             clean_template['protein']['templates'] = AF3_getTemplateJSONDirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo)
-            #clean_template['protein']['templates'] = None
-            # function to pull in MSA if present, if not return NULL and generate
-            # for multimer we want to set the paired MSA to perform the pairing (unpaired assumes merging)
+
+            # pull in MSA if available; otherwise generate. Details scarce on github and misleading; need to supply both MSA to the algorithm..
             # see https://github.com/google-deepmind/alphafold3/issues/171
 
             # supplying both paired and unpaired seqs as they are different
             clean_template['protein']['unpairedMsa'] = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='unpaired')
-            clean_template['protein']['pairedMsa'] = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='paired')
+            clean_template['protein']['pairedMsa']   = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='paired')
 
             protein_list.append(clean_template)
 
