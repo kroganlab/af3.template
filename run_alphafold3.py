@@ -53,10 +53,6 @@ def parse_args():
     help = "path repo containing dependencies for AF3 pipeline")
   
   parser.add_argument(
-    '--model_preset', choices=["monomer", "multimer"], required=True,
-    help = "Run in monomer or multimer mode")
-  
-  parser.add_argument(
     '--nSeeds', default  =  5,
     help = "Number of random seeds for initalizations for AF model")
   
@@ -192,11 +188,12 @@ def main():
                                                  jobTable=args.jobTable,
                                                  master_fasta=args.master_fasta,
                                                  alignmentRepo=args.alignmentRepo,
-                                                 model_preset=args.model_preset,
                                                  nSeeds=args.nSeeds,
                                                  json_template=args.json_template,
                                                  output_dir=args.output_dir
                                                  )
+  
+  print(f'Running AF on following input:\n{args.json_path}')
   
   mounts = []
   command_args = []
@@ -241,7 +238,9 @@ def main():
   elif args.use_a100_80gb_settings:
     singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_80gb.sif'
   else:
-    singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_40gb_cuda124.sif'
+    #singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_40gb_dec_4_2024.sif'
+    # using my sandbox env to modify AF code for testing
+    singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/script/af3_40gb_dec_4_2024_sandbox'
 
   subprocess_args = ['singularity',
           'exec',
@@ -270,8 +269,17 @@ def main():
   Alphafold3_utils.af3_captureMSAs(output_dir=runOutdir, 
                                    alignmentRepo=args.alignmentRepo)
   
-  print('Extracting all model PTM & iPTM scores...')
+  print('Extracting model PTM & iPTM scores...')
   Alphafold3_utils.af3_captureSummaryScores(output_dir=runOutdir)
 
+  print('Generating MSA & PAE plots for top ranking model...')
+  Alphafold3_utils.generate_MSAandPAEplots(outDir=runOutdir)
+
+  # TODO 
+  # add in pDockQ recovery, MSA pairing and add the pLDDT trend above the MSA plot
+  #print('Calculating pDockq scores..'
+  #import pDockq_utils
+  #chain_coords, chain_plddt = pDockq_utils.read_cif('/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/output/ASD_B2AI_PairedMSAOnly/pim1__tacc3/pim1__tacc3_model.cif')
+  # need to set up; loop over the output models, capture the pDockq score and append to the output file
 if __name__ == '__main__':
   main()
