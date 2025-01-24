@@ -269,11 +269,15 @@ def main():
   Alphafold3_utils.af3_captureMSAs(output_dir=runOutdir, 
                                    alignmentRepo=args.alignmentRepo)
   
+  print('')
   print('Extracting model PTM & iPTM scores...')
   Alphafold3_utils.af3_captureSummaryScores(output_dir=runOutdir)
-
+  print('')
   print('Generating MSA & PAE plots for top ranking model...')
   Alphafold3_utils.generate_MSAandPAEplots(outDir=runOutdir)
+  print('')
+  print('Getting inter-chain contacts and PAE...')
+  Alphafold3_utils.get_interchainContactsPAE(outDir=runOutdir)
 
   # TODO 
   # add in pDockQ recovery, MSA pairing and add the pLDDT trend above the MSA plot

@@ -319,12 +319,18 @@ def af3_captureSummaryScores(output_dir):
 
   # capture all json scores
   json_paths  = [f for f in glob.glob(output_dir+'/*/summary_confidences.json')]
+  cif_paths  =  [f for f in glob.glob(output_dir+'/*/model.cif')]
   outFile = os.path.basename(output_dir)
 
   mod = []
   ranking = []
   iptm = []
   ptm = []
+  pDockq = [] # this is a summary score for interface; complementary(??) to iptm?
+
+  # for cif set 
+  #mod = []
+  #plddt = [] # want to capture a per residue score
 
   # iterate through all the files 
   for json_file in json_paths:
@@ -336,6 +342,9 @@ def af3_captureSummaryScores(output_dir):
       iptm.append(json_data['iptm'])
       ptm.append(json_data['ptm'])
       ranking.append(json_data['ranking_score'])
+
+    # now calculate the pDockQ score
+    #with open()
 
   with open(output_dir+'/'+outFile+'_summaryScores.csv', mode="w", encoding="utf-8") as outf:
     writer = csv.writer(outf)
@@ -489,3 +498,27 @@ def generate_MSAandPAEplots(outDir):
         check = True)
   except Exception as error:
     print('Error executing Visualize_PAEandMSA.R:\n {}'.format(error))
+
+def get_interchainContactsPAE(outDir):
+
+  cif_file =  glob.glob(outDir+'/'+'*_model.cif').pop()
+  sample_name = os.path.basename(os.path.dirname(cif_file))
+  confidence_json = glob.glob(outDir+'/'+sample_name+'_confidences.json').pop()
+
+  print(F'Found files:\n{confidence_json}\n{cif_file}')
+
+  cmd_args = ['Rscript', 'getContactsPAE.R', cif_file, confidence_json]
+  cmd = ' '.join(cmd_args)
+  print("\n")
+  print(cmd)
+  print()
+
+  try:
+    subprocess.run(cmd,
+        stdout = sys.stdout, 
+        stderr = sys.stderr,
+        shell = True,  # module command is a csh alias on Wynton
+        executable = '/bin/csh',
+        check = True)
+  except Exception as error:
+    print('Error executing getContactsPAE.R:\n {}'.format(error))
