@@ -19,6 +19,8 @@ from Bio import AlignIO
 from Bio import SeqIO
 #import pandas as pd
 
+#16384 is current hard limit on the number of MSA records in the A3M AF input
+# for now use interleaved as simple to implement and more balanced
 
 # get the HPI mapping 
 # basically, using a DB map between the host and the pathogen and will use this for our sequence pairing,
@@ -47,9 +49,10 @@ def getMSAsFromJson(outDir, type='unpaired'):
         with open(outDir+'/'+prot_name+'.paired.a3m', mode="w", encoding="utf-8") as pairedMSAout:
             pairedMSAout.write(bm['pairedMsa'])
 
-def read_a3m_msa(path):
+# return dict of a3m and the output file
+def readA3mMSA(path):
   allSeqs = collections.defaultdict(str)
-  namesInOrder = []
+  #namesInOrder = []
 
   with open(path) as fp:
     currentName = ""
@@ -60,38 +63,85 @@ def read_a3m_msa(path):
       # start processing
       if line.startswith(">"):
         currentName = line
-        namesInOrder.append(currentName)
+        #namesInOrder.append(currentName)
       else:
         assert currentName != "", "Unexpected format, empty sequence name or sequence data before first >"
         allSeqs[currentName] = allSeqs[currentName] + line
   # return as tuple structure (not sure if the MSA has redundancy so safer maybe...)
-  return(allSeqs, namesInOrder)
+  #return(allSeqs, namesInOrder)
+  return(allSeqs)
+
+# get the total number of sequences, look for each sequence to see if it passes or fails the seq filter
+# only keep those that pass the sequence filter
+def filterGappedMSA(msaDict, maxSeqGap=0.9):
+
+  print(f"Starting number of records in msa: {len(msaDict)}")
+  print(f"Filtering out msa records with >= {maxSeqGap}  gapped characters in sequence...")
+
+  filteredDict = collections.defaultdict(str)
+  for k,v in msaDict.items():
+     if int(v.count('-'))/len(v) <  maxSeqGap:
+        filteredDict[k] = v
+  
+  print(f"Filtered out {len(msaDict) - len(filteredDict)} records in msa")
+  print(f"Remainging records: {len(filteredDict)} ")
+  return(filteredDict) 
 
 
-# padding added to A3M MSA rows
+# padding added to A3M MSA rows; I would prefer to add the padding before and after to make the padding clear, but how
 # skip records determines how mant MSA records to skip before inserting dummy rows
-def padA3MMSARows(a3m_obj, out_a3m, skip_records=1):
+def padA3MMSARows(a3m_obj, skip_records=1):
    
    outDict = {}
    count = 0 
 
-   # get length of the query
-   query_key = list(a3m_obj[0].keys())[0]
-   query_len = len(a3m_obj[0][query_key])
+   # get length of the query seq
+   query_key = list(a3m_obj.keys())[0]
+   query_len = len(a3m_obj[query_key])
 
-   for k,v in a3m_obj[0].items():
+   for k,v in a3m_obj.items():
     outDict[k] = v
     count += 1
     if count >= skip_records:
         outDict[f">dummySeq_{count}"] = "-" * query_len
 
-   print(f"MSA length without padding: {len(a3m_obj[0].values())}")  
-   print(f"MSA length with padding: {len(outDict.values())}")  
-   print(f"Writing output to {out_a3m}...")
+   print(f"MSA length without padding: {len(a3m_obj.values())}")  
+   print(f"MSA length with padding: {len(outDict.values())}")
 
-   with open(out_a3m, mode='w', encoding="utf-8") as outFile:
-      for k,v in outDict.items():
-         outFile.write(f'{k}\n{v}\n')
+   outA3M = "\n".join(f"{k}\n{v}" for k,v in outDict.items())
+   #result = "\\n".join(f"{k}\\n{v}" for k,v in outDict.items()) # check if the above creates the correct format first..
+   return(outA3M)
+
+   # not needed; better to stream
+   #with open(out_a3m, mode='w', encoding="utf-8") as outFile:
+   #   for k,v in outDict.items():
+   #      outFile.write(f'{k}\n{v}\n')
+
+# count the number MSA records (do we need to remove sequences with only padding?)
+def getMSADepth(a3mObj):
+  a3m_headers = a3mObj.keys()
+  return(len(a3m_headers))
+
+def getMSALength(a3mObj):
+  a3m_headers = a3mObj.values()
+  seq_size = [len(l) for l in a3m_headers]
+  print(f"sequence size ranges: {min(seq_size)} - {max(seq_size)} ")
+
+
+def updateJsonwithPaddedMSA(jsonPath, 
+                            outDir,
+                            chainIDs):
+   
+  print(f"Loading {jsonPath}...") 
+  with open(jsonPath, mode="r", encoding="utf-8") as json_file:
+     json_data = json.load(json_file)
+
+  for idx,id in enumerate(chainIDs):
+     
+     print(f"Adding padding to unpairedMsa for chain {id} in {jsonPath}...") 
+     # might need to simplify this.. change the a3m_obj input to a json file format? Or else different way of running this...
+     json_data['sequences'][idx]['protein']['unpairedMsa'] = padA3MMSARows(a3m_obj, skip_records=idx+1)
+
 
 
 def updateJsonwithPaddingMSA(jsonPath, 
