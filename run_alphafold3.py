@@ -278,6 +278,9 @@ def main():
   print('')
   print('Getting inter-chain contacts and PAE...')
   Alphafold3_utils.get_interchainContactsPAE(outDir=runOutdir)
+  print('')
+  print('plotting inter-chain distances...')
+  Alphafold3_utils.plot_interChainDistances(outDir=runOutdir)
 
   # TODO 
   # add in pDockQ recovery, MSA pairing and add the pLDDT trend above the MSA plot

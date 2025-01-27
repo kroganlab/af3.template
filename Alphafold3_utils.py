@@ -3,6 +3,8 @@
 # Collection of helper functions used to run the AF3 pipeline
 # Mostly adapted from https://github.com/kroganlab/bp_utils/blob/master/af.template.dir/AF_saveMSAS.231.py
 
+# to do; fix the dict creation; if duplicates in fa input it concatenates the sequence. want to replace for safety
+
 # NB modules
 import os
 import re
@@ -31,6 +33,7 @@ def af3_alphaFoldRunOutputDirectory(seq_list, outputPath):
   seq_list = [seq.lower() for seq in seq_list] #mimic 'tidy' format of AF3 output folder
   return os.path.join(outputPath, f"{'__'.join(seq_list)}")
 
+# modified to drop duplicate values
 # modify to handle dimers?
 def read_fasta(path):
   allSeqs = collections.defaultdict(str)
@@ -47,6 +50,7 @@ def read_fasta(path):
         assert currentName != "", "Unexpected format, empty sequence name or sequence data before first >"
         allSeqs[currentName] = allSeqs[currentName] + line
   return allSeqs, namesInOrder
+
 
 # given a sequence get the hex and check alignment repo for matching folder
 # if found, check the input sequence matches the query in the a3m file
@@ -478,7 +482,6 @@ def generate_MSAandPAEplots(outDir):
   data_json = glob.glob(outDir+'/'+'*_data.json').pop()
 
   sample_name = os.path.basename(os.path.dirname(data_json))
-  print(sample_name)
   confidence_json = glob.glob(outDir+'/'+sample_name+'_confidences.json').pop()
 
   print(F'Found files:\n{confidence_json}\n{data_json}\n{msa_file}')
@@ -522,3 +525,27 @@ def get_interchainContactsPAE(outDir):
         check = True)
   except Exception as error:
     print('Error executing getContactsPAE.R:\n {}'.format(error))
+
+def plot_interChainDistances(outDir):
+
+  cif_file =  glob.glob(outDir+'/'+'*_model.cif').pop()
+  sample_name = os.path.basename(os.path.dirname(cif_file))
+  confidence_json = glob.glob(outDir+'/'+sample_name+'_confidences.json').pop()
+
+  print(F'Found files:\n{confidence_json}\n{cif_file}')
+
+  cmd_args = ['Rscript', 'plotContactsPLDDT.R', cif_file, confidence_json]
+  cmd = ' '.join(cmd_args)
+  print("\n")
+  print(cmd)
+  print()
+
+  try:
+    subprocess.run(cmd,
+        stdout = sys.stdout, 
+        stderr = sys.stderr,
+        shell = True,  # module command is a csh alias on Wynton
+        executable = '/bin/csh',
+        check = True)
+  except Exception as error:
+    print('Error executing plotContactsPLDDT.R:\n {}'.format(error))
