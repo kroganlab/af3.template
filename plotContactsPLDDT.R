@@ -3,7 +3,6 @@ library(magrittr)
 library(ggplot2)
 library(jsonlite) # convert json to do
 library(stringr)
-#library(circlize)
 library(bio3d) # open pdb
 library(usedist)#package for working with distances
 
@@ -22,7 +21,10 @@ stopifnot(`Pass only one confidences json file` = length(confidenceJsonFile) <= 
 distancesResOutFile <- sprintf("%s.distances.csv",
                              gsub("\\_confidences.json$", "", confidenceJsonFile))
 
-sName <- gsub('\\_model.cif', '', pdbFile)
+plddtPlotOutFile <- sprintf("%s.plddt.distances.png",
+                             gsub("\\_confidences.json$", "", confidenceJsonFile))
+
+sName <- gsub('\\_model.cif', '', basename(pdbFile))
 
 message("Samplename: ", sName)
 message("Loading pdb/cif from ", pdbFile)
@@ -109,7 +111,7 @@ g <- ggplot(interchain.dt, aes(x = resno, y = distance, color = bfactor)) +
   scale_x_continuous(breaks = seq(0, max(interchain.dt$resno, na.rm = TRUE), by = 200)) +
   ggrepel::geom_text_repel(aes(label = resno))
 
-png(paste0(sName,".plddt.distances.png"), width=10,height=8,units="in",res=1200)
+png(plddtPlotOutFile, width=10,height=8,units="in",res=1200)
 g
 dev.off()
 
