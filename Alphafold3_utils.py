@@ -18,6 +18,7 @@ import glob
 import copy # creating dict copies
 import csv
 import subprocess
+import pDockq_utils as pdq
 #import pandas as pd
 
 
@@ -323,21 +324,24 @@ def af3_captureSummaryScores(output_dir):
 
   # capture all json scores
   json_paths  = [f for f in glob.glob(output_dir+'/*/summary_confidences.json')]
-  cif_paths  =  [f for f in glob.glob(output_dir+'/*/model.cif')]
   outFile = os.path.basename(output_dir)
 
   mod = []
   ranking = []
   iptm = []
   ptm = []
-  pDockq = [] # this is a summary score for interface; complementary(??) to iptm?
+  pdockq = [] # this is a summary score for interface; complementary(??) to iptm?
+  precision = [] # an estimate of AF interface score? Need to look up...
 
-  # for cif set 
-  #mod = []
-  #plddt = [] # want to capture a per residue score
-
+  # safer way; capture each output dir 
   # iterate through all the files 
   for json_file in json_paths:
+    model_seed_path=os.path.dirname(json_file) + '/model.cif'
+    # capture pdockq and PPV/precision(??)
+    pq, ppv = pdq.get_model_pDockq(model_seed_path, contactThreshold=4)
+    pdockq.append(pq)
+    precision.append(ppv)
+
     model_name=outFile + '.' + os.path.dirname(json_file).split('/')[-1]
     mod.append(model_name)
 
@@ -347,23 +351,11 @@ def af3_captureSummaryScores(output_dir):
       ptm.append(json_data['ptm'])
       ranking.append(json_data['ranking_score'])
 
-    # now calculate the pDockQ score
-    #with open()
-
   with open(output_dir+'/'+outFile+'_summaryScores.csv', mode="w", encoding="utf-8") as outf:
     writer = csv.writer(outf)
-    writer.writerow(['model', 'ranking', 'ptm', 'iptm'])
-    writer.writerows(zip(mod, ranking, ptm, iptm))
+    writer.writerow(['model', 'ranking', 'ptm', 'iptm', 'pdockq', 'ppv'])
+    writer.writerows(zip(mod, ranking, ptm, iptm, pdockq, precision))
 
-  # alternative: 
-  ## pandas option; dont use as need to load additional package
-  # creat dictionary and convert to dt
-  #outdict = {'model': mod, 'ranking': ranking, 'iptm': iptm, 'ptm': ptm}
-
-  #df = pd.DataFrame(outdict)  
-  # saving the dataframe
-  #df.to_csv(output_dir+'/'+'summary.scores.csv')
-  
 # MSA pairing is an important step for multimer models
 # by default, AF3 uses taxonIDs to reorder MSAs rowwise and pair species before concatenating
 # we would also like to use this pairing between hosts and pathogens

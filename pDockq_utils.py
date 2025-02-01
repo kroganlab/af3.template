@@ -2,9 +2,10 @@
 
 # NB modules
 import numpy as np
+import glob
 from collections import defaultdict
 
-# adapted from https://gitlab.com/ElofssonLab/FoldDock/-/blob/main/src/pdockq.py?ref_type=heads
+# minor adaptions from https://gitlab.com/ElofssonLab/FoldDock/-/blob/main/src/pdockq.py?ref_type=heads
 
 def parse_atm_record(line):
     '''Get the atm record
@@ -54,7 +55,7 @@ def read_cif(ciffile):
   return chain_coords, chain_plddt
 
 
-def calc_pdockq(chain_coords, chain_plddt, t):
+def calc_pdockq(chain_coords, chain_plddt,t):
     '''Calculate the pDockQ scores
     pdockQ = L / (1 + np.exp(-k*(x-x0)))+b
     L= 0.724 x0= 152.611 k= 0.052 and b= 0.018
@@ -105,11 +106,13 @@ def calc_pdockq(chain_coords, chain_plddt, t):
             ppv = PPV[inds[-1]][0]
         else:
             ppv = PPV[0]
-    
-    print(pdockq)
-    print(ppv)
+
     return pdockq, ppv
 
-#def get_model_pDockq(outDir):
-
-
+def get_model_pDockq(cifPath, contactThreshold=4):
+    '''
+    Use above function to capture the pDockq score and append to the output summary csv
+    '''
+    chain_coords,chain_plddt=read_cif(cifPath)
+    pdockq,ppv=calc_pdockq(chain_coords, chain_plddt, contactThreshold)
+    return(pdockq, ppv)
