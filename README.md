@@ -4,7 +4,7 @@
 
 1. Clone the github repo to a Wynton working directory
 ```
-git clone https://github.com/kroganlab/af3.template.git .
+git clone https://github.com/kroganlab/af3.template.git 
 ```
 
 2. Move into `af3.template`. This will be your project working directory

@@ -1,0 +1,1 @@
+SGE jobs will fail if the directory to write job logs doesn't exist.
