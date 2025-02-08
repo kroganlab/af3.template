@@ -12,6 +12,12 @@ git clone https://github.com/kroganlab/af3.template.git
 cd  af3.template
 ```
 
+2b. *First time only you run this on Wynton*, make sure you have the R packages you need. This is only necessary for some of the post processing after AlphaFold completes.
+
+```
+bash installPackages.R
+```
+
 3. Make a new `AlphaFoldJobList.csv` file (match format to `pten.jobTable.txt`)
 
 4. Make a new `masterFasta.fasta` file (match format to `pten_preys.fa`)
