@@ -15,7 +15,7 @@ cd  af3.template
 2b. *First time only you run this on Wynton*, make sure you have the R packages you need. This is only necessary for some of the post processing after AlphaFold completes.
 
 ```
-bash installPackages.R
+bash installPackages.sh
 ```
 
 3. Make a new `AlphaFoldJobList.csv` file (match format to `pten.jobTable.txt`)
