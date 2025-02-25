@@ -239,8 +239,9 @@ def main():
     singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_80gb.sif'
   else:
     #singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_40gb_dec_4_2024.sif'
-    # using my sandbox env to modify AF code for testing
-    singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/script/af3_40gb_dec_4_2024_sandbox'
+    # test env
+    singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/testing/af3_env/af3_env_mg_dev'
+    #singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/script/af3_40gb_dec_4_2024_sandbox'
 
   subprocess_args = ['singularity',
           'exec',
