@@ -11,6 +11,7 @@ import string
 import glob
 import copy # creating dict copies
 import csv
+import random
 import subprocess
 import numpy as np
 from collections import defaultdict
@@ -123,13 +124,13 @@ def deduplicateMSA(msaDict):
 def mapSequence(msa, option='map'):
     '''Convert MSA seq to/from numeric numpy array'''
 
-    assert option %in% ['map', 'backmap']
+    assert option == 'map' or option == 'backmap'
 
     backmapDict = { 1:'A', 2:'C', 3:'D', 4:'E', 5:'F',6:'G' ,7:'H',
                     8:'I', 9:'K', 10:'L', 11:'M', 12:'N', 13:'P',14:'Q',
                     15:'R', 16:'S', 17:'T', 18:'V', 19:'W', 20:'Y', 21:'-'} #Here all unusual AAs and gaps are set to the same char
     
-    mapDict = {value: key for key, value in backmap.items()}
+    mapDict = {value: key for key, value in backmapDict.items()}
 
     if option  == 'map':
       mapping = mapDict
@@ -248,8 +249,8 @@ def pair_MSAs(ox1, ox2, msa1, msa2, header1, header2):
 
     # convert numeric code back to msa sequence
     for i in range(max_num):
-      paired_msa1[i] = backmapSequence(paired_msa1[i])
-      paired_msa2[i] = backmapSequence(paired_msa2[i])
+      paired_msa1[i] = mapSequence(paired_msa1[i], option='backmap')
+      paired_msa2[i] = mapSequence(paired_msa2[i], option='backmap')
 
     if len(paired_msa1) != len(paired_msa2):
        print('missmatching number of records in msa... aborting')
@@ -261,22 +262,31 @@ def pair_MSAs(ox1, ox2, msa1, msa2, header1, header2):
 # divide up the remainder into equally sized blocks and concatenate the sequences
 
 # get list of paths to blockchain MSA
-def blockChainMSA(unpairedMSAs=[], depth=16384/2):
+def blockChainMSA(unpairedMSAs=[], depth=16384/2, saveMSAs=False, outDir=False):
+  'Given a list of MSA in A3M format, generate a merged block diagonal matrix'
+  'Chains are concatenated along the n dimension (column) with missing characters populated with -'
+  'Idea here is to avoid merging unrealted sequences and adding noise to the paired representation'
+  
   assert(type(unpairedMSAs) is list)
 
   nChains = len(unpairedMSAs)
   chainDepth = depth/nChains
-  print(f"returning {chainDepth} records per MSA..")
-
+  if type(chainDepth) == float:
+       chainDepth = round(depth/nChains)
+     
+  print(f"extracting {chainDepth} random records per MSA..")
+  
   chainID = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
   msa_list = []
   ox_list = []
   header_list = []
-  msa_width = [] # capture N sequecnes in each MSA
+  msa_width = []
   msa_length = []
 
-  for i,msa in enumerate(unpairedMSAs):
+  # iterate through the MSAs and extract info from each to populate the 
+  for i,msa in enumerate(unpairedMSAs):\
+
     print(f'getting unpaired MSA for {chainID[i]}')
     msa, ox, header = read_a3m(msa)
 
@@ -286,15 +296,75 @@ def blockChainMSA(unpairedMSAs=[], depth=16384/2):
     ox_list.append(ox)
     header_list.append(header)
 
-  merge_msa = np.full((sum(msa_length), sum(msa_width)), 21, dtype=int)
-  print(merge_msa.shape)
-  print(merge_msa)
+  # create null merged msa and populate with empty characters ('-')
+  merge_msa = np.full((chainDepth*nChains, sum(msa_width)), 21, dtype=int)
+  newNames=np.array([], dtype='<U263')
+  
+  currentDepth=0; currentLen=0; 
+
+  for i,msa in  enumerate(unpairedMSAs):
+     
+     # update the merged MSA with sequences 
+     merge_msa[currentDepth:chainDepth*(i+1), currentLen:currentLen+msa_width[i]] = msa_list[i][:chainDepth,:msa_width[i]]
+     currentDepth=chainDepth*(i+1)
+     currentLen=currentLen + msa_width[i]
+     # take anmes and append the merged msa
+     newNames = np.append(newNames, np.char.add(header_list[i][:chainDepth], ' mergedMSA'))
+
+  outMSAs = []
+  start = 0
+
+  for width in msa_width:
+    subset_msa = merge_msa[:, start:start + width] # Slice columns; keep all rows
+    # backmap to chr
+    processed_msa = np.array([mapSequence(row, option='backmap') for row in subset_msa])
+    outMSAs.append((newNames, processed_msa))
+    start += width
+
+  if saveMSAs and outDir:
+    print(f'Saving MSA to {outDir}')
+    
+    for i, (msa_header, msa) in enumerate(outMSAs):  
+        file_path = f"{outDir}/{chainID[i]}.blockChain.af3"
+        with open(file_path, 'w') as a3m_out:
+          # a little mealy, but basically iterate over msa records and write header, followed by concatenated str
+          a3m_out.write("\n".join(f"{name}\n{''.join(map(str, row))}" for name, row in zip(msa_header, msa)) + "\n")
+
+  return outMSAs
 
 
 
-  return msa_list, ox_list, header_list
-  # I think here we use the same method to find the msaFilepath, and read in using the above 
+def getMSAIndex(unpairedMSA, nrecords):
+   'Given n records, extract the indices of records to keep from the MSA'
+   'Select based on OX identifer as we want evolutionary diversity in our AF MSA'
+   'return list of indices of the extracted records; use this to subset MSAs'
+   
+   msa,ox,header = read_a3m(unpairedMSA)
 
+   msa_depth, msa_length = msa.shape
+   assert nrecords <= msa_depth, f"Number of requested records is greater than MSA depth: {msa_depth}"
+
+   speciesDict = {}
+   indices = []
+
+   for org in ox:
+      idx = np.argwhere(org == ox).flatten()  # get all occurrences in org in list
+      if org not in speciesDict.keys():
+        speciesDict[org] = idx
+        # randomly assign a record per species
+        indices.append(random.choice(idx))
+    
+   if len(indices) < nrecords:
+      print(f"Number of unique organisms (OX) is less than number of requested records:\n{len(indices)} < {nrecords} ")
+      print(f"randomly resampling remaining records to meet the requested MSA depth")
+
+   # return a random subset of records from the remainder  
+   remainingRecords = list(set(range(1, msa_depth)) - set(indices))
+
+   indices = indices + random.sample(remainingRecords, nrecords-len(indices))
+   return(indices)
+
+  
 
 # get the number of paired records in the paired MSA, to estimate the number of remaining records
 # how does AF performing the species pairing? one to many or 1-1? For safety and first test, t
