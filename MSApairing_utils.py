@@ -1,31 +1,14 @@
 
-# NB modules
+# modules
 import os
 import re
 import json
 import sys
 import collections
-import hashlib
-import shutil
-import string
 import glob
-import copy # creating dict copies
-import csv
 import random
-import subprocess
 import numpy as np
-from collections import defaultdict
 import argparse
-from Bio import AlignIO
-from collections import Counter
-from Bio import SeqIO
-import Alphafold3_utils as af3
-#import pandas as pd
-
-# get the HPI mapping 
-# basically, using a DB map between the host and the pathogen and will use this for our sequence pairing,
-# similar to AF3, take the unpaired uniprot for both species, if there is info in the DB about the species pairing, pair 
-# will make a dictionary of the HPI dt key will be the unique identifier (names joined together) and will reorder based on display name
 
 def getMSAsFromJson(outDir, type='unpaired'):
 
@@ -38,7 +21,6 @@ def getMSAsFromJson(outDir, type='unpaired'):
         json_data = json.load(json_file)
 
     # pull out the relevant info for each of the biomoleucles
-    # focus on MSA and templates as longest to generate..
     for biomolecule in json_data.get("sequences", []):
 
       protein = biomolecule.get("protein", {})
@@ -84,8 +66,6 @@ def filterGappedMSA(msaDict, maxSeqGap=0.9):
 
 
 # dictionary of species ID and N records assigned to species {speciesID: N sequences}
-# change to  tuple with N sequences and list of sequences?
-# sanity check and counts look good
 def makeSpeciesDictionary(a3m):
    
    orgIDs = collections.defaultdict()
@@ -102,7 +82,8 @@ def makeSpeciesDictionary(a3m):
    return(orgIDs)
 
 
-# deduplicate MSA within species level.. dont want replicate species to artificially inflate..
+# deduplicate MSA within species level..
+#  dont want replicate sequences from same species to artificially inflate signal..
 def deduplicateMSA(msaDict):
    
     cleanMSA = collections.defaultdict(str)
@@ -136,7 +117,7 @@ def mapSequence(msa, option='map'):
       mapping = mapDict
     else:
       mapping = backmapDict
-    # use this to backmap from 
+
     seq = ''.join([mapping[ch] for ch in msa])
     return(seq)
 
@@ -157,7 +138,8 @@ def read_a3m(infile,max_gap_fraction=0.9):
     with open(infile, 'r') as file:
         for line in file:
             line = line.rstrip()
-
+            if line.startswith('#'): #skip AP introduced lines
+              continue
             if line.startswith('>'): #OX=OrganismIdentifier
                 if 'OX=' in line:
                     OX=line.split('OX=')[1]
@@ -188,24 +170,24 @@ def read_a3m(infile,max_gap_fraction=0.9):
                     header.append(line)
                 continue
             line = line.rstrip()
-            gap_fraction = line.count('-') / float(len(line))
-            # if gapped > limit, drop this species
-            if gap_fraction <= max_gap_fraction:#Only use the lines with less than 90 % gaps
+            if line: # ignore empty lines
+              gap_fraction = line.count('-') / float(len(line))
+              # if gapped > limit, drop this species
+              if gap_fraction <= max_gap_fraction:#Only use the lines with less than 90 % gaps
                 parsed.append([mapping.get(ch, 22) for ch in line if not ch.islower()]) #convert msa line to numeric
-            else:
+              else:
                 if len(species)>1:
                     species = species[:-1] #Remove the previously stored species
                     header = header[:-1] # and header
                     continue
-            #Check that the lengths match
-            if len(parsed[-1])!=seqlen and lc>=1:
+              #Check that the lengths match
+              if len(parsed[-1])!=seqlen and lc>=1:
                 parsed = parsed[:-1]
                 species = species[:-1]
                 header = header[:-1]
                 continue
-            seqlen = len(parsed[-1])
-            lc+=1
-
+              seqlen = len(parsed[-1])
+              lc+=1
 
     return np.array(parsed, dtype=np.int8, order='F'), np.array(species), np.array(header)
 
@@ -257,16 +239,16 @@ def pair_MSAs(ox1, ox2, msa1, msa2, header1, header2):
        exit
     return list(zip(header1, paired_msa1)), list(zip(header2, paired_msa2)), len(paired_msa1)
 
-# dont need to worry about the length, just need to divide the remainder into equally sized blocks depending on chain N
-# then find a way to add these to the input json, but dont want to store!
-# divide up the remainder into equally sized blocks and concatenate the sequences
+## TODO function works, but seems it is not the query that is added to the top.. is this unordered?
 
-# get list of paths to blockchain MSA
 def blockChainMSA(unpairedMSAs=[], depth=16384/2, saveMSAs=False, outDir=False):
-  'Given a list of MSA in A3M format, generate a merged block diagonal matrix'
-  'Chains are concatenated along the n dimension (column) with missing characters populated with -'
-  'Idea here is to avoid merging unrealted sequences and adding noise to the paired representation'
-  
+  '''
+  Given a list of MSA in A3M format, generate a merged block diagonal matrix
+  Chains are concatenated along the n dimension (column) with missing characters populated with -
+  Idea here is to avoid merging unrealted sequences and adding noise to the paired representation
+  Depth of unpaired MSA is hardcoded in AF3 pipeline
+  Note: moving query to top and stays concatenated to avoid failure due to sequence check
+  '''
   assert(type(unpairedMSAs) is list)
 
   nChains = len(unpairedMSAs)
@@ -274,7 +256,7 @@ def blockChainMSA(unpairedMSAs=[], depth=16384/2, saveMSAs=False, outDir=False):
   if type(chainDepth) == float:
        chainDepth = round(depth/nChains)
      
-  print(f"extracting {chainDepth} random records per MSA..")
+  print(f"extracting {chainDepth} records per MSA..")
   
   chainID = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -283,33 +265,50 @@ def blockChainMSA(unpairedMSAs=[], depth=16384/2, saveMSAs=False, outDir=False):
   header_list = []
   msa_width = []
   msa_length = []
+ 
+  querySeq = []
+  #queryLen = 0
+  for i,msa in enumerate(unpairedMSAs):
 
-  # iterate through the MSAs and extract info from each to populate the 
-  for i,msa in enumerate(unpairedMSAs):\
-
-    print(f'getting unpaired MSA for {chainID[i]}')
+    print(f'getting unpaired MSA for chain {chainID[i]}')
     msa, ox, header = read_a3m(msa)
 
+    # get the query sequence from each 
+    querySeq.append(msa[0])
+    #queryLen += len(msa[0])
+
+    # drop the query row
+    msa = np.delete(msa,0, axis=0); header = np.delete(header,0, axis=0); ox = np.delete(ox,0, axis=0)
+
+    # dim of merge_MSA
     msa_length.append(msa.shape[0])
     msa_width.append(msa.shape[1])
+
     msa_list.append(msa)
     ox_list.append(ox)
     header_list.append(header)
 
+  # concatenate hte query sequences
+  querySeq = np.hstack(querySeq)
+
   # create null merged msa and populate with empty characters ('-')
-  merge_msa = np.full((chainDepth*nChains, sum(msa_width)), 21, dtype=int)
+  merge_msa = np.full((chainDepth *nChains, sum(msa_width)), 21, dtype=int)
   newNames=np.array([], dtype='<U263')
-  
   currentDepth=0; currentLen=0; 
 
-  for i,msa in  enumerate(unpairedMSAs):
+  for i,msa in enumerate(unpairedMSAs):
      
      # update the merged MSA with sequences 
      merge_msa[currentDepth:chainDepth*(i+1), currentLen:currentLen+msa_width[i]] = msa_list[i][:chainDepth,:msa_width[i]]
      currentDepth=chainDepth*(i+1)
      currentLen=currentLen + msa_width[i]
-     # take anmes and append the merged msa
+     # take names and append the merged msa
      newNames = np.append(newNames, np.char.add(header_list[i][:chainDepth], ' mergedMSA'))
+
+  print('Moving query sequences to first record...')
+  # cbind the query, then rbind
+  merge_msa = np.vstack((querySeq, merge_msa))
+  newNames = np.insert(newNames, 0, '>query mergedMSA')
 
   outMSAs = []
   start = 0
@@ -333,6 +332,11 @@ def blockChainMSA(unpairedMSAs=[], depth=16384/2, saveMSAs=False, outDir=False):
   return outMSAs
 
 
+def unpackMSA(msaObj):
+   '''
+   Unpack the MSAs produced by blockChainMSA
+   '''
+   return "\n".join(f"{name}\n{''.join(map(str, row))}" for name, row in zip(msaObj[0], msaObj[1])) + "\n"
 
 def getMSAIndex(unpairedMSA, nrecords):
    'Given n records, extract the indices of records to keep from the MSA'
@@ -364,7 +368,6 @@ def getMSAIndex(unpairedMSA, nrecords):
    indices = indices + random.sample(remainingRecords, nrecords-len(indices))
    return(indices)
 
-  
 
 # get the number of paired records in the paired MSA, to estimate the number of remaining records
 # how does AF performing the species pairing? one to many or 1-1? For safety and first test, t
@@ -424,11 +427,6 @@ def padA3MMSARows(a3m_obj, skip_records=1):
    #result = "\\n".join(f"{k}\\n{v}" for k,v in outDict.items()) # check if the above creates the correct format first..
    return(outA3M)
 
-   # not needed; better to stream
-   #with open(out_a3m, mode='w', encoding="utf-8") as outFile:
-   #   for k,v in outDict.items():
-   #      outFile.write(f'{k}\n{v}\n')
-
 # count the number MSA records (do we need to remove sequences with only padding?)
 def getMSADepth(a3mObj):
   a3m_headers = a3mObj.keys()
@@ -453,7 +451,6 @@ def updateJsonwithPaddedMSA(jsonPath,
      print(f"Adding padding to unpairedMsa for chain {id} in {jsonPath}...") 
      # might need to simplify this.. change the a3m_obj input to a json file format? Or else different way of running this...
      json_data['sequences'][idx]['protein']['unpairedMsa'] = padA3MMSARows(a3m_obj, skip_records=idx+1)
-
 
 
 def updateJsonwithPaddingMSA(jsonPath, 

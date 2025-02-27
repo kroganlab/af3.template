@@ -1,9 +1,8 @@
 #!/usr/bin/python3
 
-# Collection of helper functions used to run the AF3 pipeline
 # Mostly adapted from https://github.com/kroganlab/bp_utils/blob/master/af.template.dir/AF_saveMSAS.231.py
 
-# to do; fix the dict creation; if duplicates in fa input it concatenates the sequence. want to replace for safety
+# TODO fix the dict creation; if duplicates in fa input it concatenates the sequence. want to replace for safety
 
 # NB modules
 import os
@@ -12,14 +11,13 @@ import json
 import sys
 import collections
 import hashlib
-import shutil
-import string
 import glob
 import copy # creating dict copies
 import csv
 import subprocess
 import pDockq_utils as pdq
-#import pandas as pd
+import MSApairing_utils as mp
+
 
 
 # extract name from header after the ID component |sp|tr|up, else return complete string
@@ -70,7 +68,6 @@ def AF3_getMSADirectoryForSequence(sequence, alignmentRepo, MSAType='unpaired'):
         print(f"No MSA found in {dir}..\nReturning null to enforce MSA creation")
         return None
     if len(msaPaths) > 0:
-        print(msaPaths)
         for msa in msaPaths:
             print(msa)
             with open(dir+'/'+msa,'r') as msa_file:
@@ -94,6 +91,40 @@ def AF3_getMSADirectoryForSequence(sequence, alignmentRepo, MSAType='unpaired'):
                             print('Preparing paired MSA')
                             a3m = a3m.read()
                             return(a3m)
+                          
+
+def AF3_getMSAPath(sequence, alignmentRepo):
+    '''
+    For MSApairing. Given a sequence, convert to hash and search the alignment repo for an unpaired MSA (a3m format)
+    If found, return path
+    '''
+    # creates a hash of the input sequence
+    seqHash = hashlib.md5(sequence.upper().encode('utf-8')).hexdigest()
+    # subdir take the first two elements
+    subDir = seqHash[0:2]
+    dir = os.path.join(alignmentRepo, subDir, seqHash)
+    #if directory exists, raise an error if seqeunces mismatch
+    try:
+        msaPaths = []
+        msaPaths = [p for p in os.listdir(dir) if p.split(".")[-2] == 'unpaired']
+    except:
+        print(f"No unpaired MSA found in {dir}..\nReturning None")
+        return None
+    if len(msaPaths) > 0:
+        print(f"Found {len(msaPaths)} unpaired MSA:\n{msaPaths}")
+        for msa in msaPaths:
+            # sanity check; make sure query matches
+            with open(dir+'/'+msa,'r') as msa_file:
+              for line in msa_file:
+                if line.startswith('>query'):
+                    a3m_seq = msa_file.readline().rstrip('\n') # skip to next line and get query seq...assumption is query is exact match
+                    if sequence != a3m_seq:
+                        print(f"Sequence Mismatch Error in {dir}:")
+                        print(f"Mismatch in \n{sequence}\n{a3m_seq}")
+                        print(f"Returning null to enforce fresh MSA creation")
+                        return None
+                    else:
+                        return(dir+'/'+msa)
                         
 # need to check if null enforces template search or whether to provide an empty string
 def AF3_getTemplateJSONDirectoryForSequence(sequence, alignmentRepo):
@@ -171,7 +202,8 @@ def af3_setupJob(job_id,
                  setup_job,
                  alignmentRepo, 
                  nSeeds, # more models recommended by AP for more accurate inference
-                 json_template):
+                 json_template,
+                 blockChainMSA):
     
     jobID = job_id
     with open(jobTable) as fp:
@@ -213,10 +245,21 @@ def af3_setupJob(job_id,
         
         # create a af3 test input file
         protein_list = []
-        
-        # loop through the sequences and populate the relevant protein level info,
-        # if I can fix this, should be in fit enough state to test with multiple sequences
 
+        if blockChainMSA:
+
+           unpaired_list = [] # create list of unpaired ID
+           for i,seqID in enumerate(seq_list):
+              unpaired_list.append(AF3_getMSAPath(sequence=seqs[seqID], alignmentRepo=alignmentRepo))
+           
+           #rm when running
+           print(f"unpaired MSA for blockchain generation:\n{unpaired_list}")
+
+           print('Generating blockChainMSAs...')
+           blockMSA=mp.blockChainMSA(unpairedMSAs=unpaired_list,
+                                     saveMSAs=False)
+
+        # loop through the sequences and populate the relevant protein level info,
         for i,seqID in enumerate(seq_list):
             print(seq_list)
             # creating a deep copy of template
@@ -227,12 +270,16 @@ def af3_setupJob(job_id,
             # add protein template info...
             clean_template['protein']['templates'] = AF3_getTemplateJSONDirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo)
 
-            # pull in MSA if available; otherwise generate. Details scarce on github and misleading; need to supply both MSA to the algorithm..
+            # pull in MSA if available; otherwise generate
             # see https://github.com/google-deepmind/alphafold3/issues/171
 
-            # supplying both paired and unpaired seqs as they are different
-            clean_template['protein']['unpairedMsa'] = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='unpaired')
-            clean_template['protein']['pairedMsa']   = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='paired')
+            # block only executed if blockChain msa is enabled
+            if blockChainMSA:
+              clean_template['protein']['unpairedMsa'] = mp.unpackMSA(blockMSA[i])
+              clean_template['protein']['pairedMsa']   = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='paired')
+            else:
+              clean_template['protein']['unpairedMsa'] = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='unpaired')
+              clean_template['protein']['pairedMsa']   = AF3_getMSADirectoryForSequence(sequence=seqs[seqID], alignmentRepo=alignmentRepo, MSAType='paired')
 
             protein_list.append(clean_template)
 
@@ -244,7 +291,7 @@ def af3_setupJob(job_id,
         return(outDir+'/'+af3_json_template['name']+'.af3_input.json')
     
 # postProcessing work
-#need to revisit this and completely modify..
+# need to revisit
 # After pipeline completes, recover the MSA from the AF3 output directory and store in alignmentRepo
 # check for chainA and chainB and use that naming in the output
 def af3_captureMSAs(output_dir, alignmentRepo):
@@ -316,8 +363,6 @@ def af3_captureMSAs(output_dir, alignmentRepo):
                 with open(outDir+'/'+prot_name+'.templates.json', mode="w", encoding="utf-8") as templatesout:
                   json.dump(bm['templates'], templatesout)
 
-              
-
 
 # post run score processing; just capture all ptm, iptm and ranking from each of the individual models and write as csv
 def af3_captureSummaryScores(output_dir):
@@ -356,11 +401,6 @@ def af3_captureSummaryScores(output_dir):
     writer.writerow(['model', 'ranking', 'ptm', 'iptm', 'pdockq', 'ppv'])
     writer.writerows(zip(mod, ranking, ptm, iptm, pdockq, precision))
 
-# MSA pairing is an important step for multimer models
-# by default, AF3 uses taxonIDs to reorder MSAs rowwise and pair species before concatenating
-# we would also like to use this pairing between hosts and pathogens
-# read in two MSAs; one for host, one for pathogen
-#def af3_hostPathogenMSAPairing(hostMSA, pathogenMSA, mappingDB):
    
 def af3_createMasterFastafromMSADirectory(inputFile, msaDirectory, outputFile):
   
@@ -465,7 +505,6 @@ def updateAF3MSADirectory(AFJsonDir, outputMSADir):
     af3_extractFeaturesfromAF3JSON(jsonInput=json, msaDirectory=outputMSADir)
 
   print(f'Done...')
-
 
 # generate MSA and PAE plots for the top scoring model per PPI
 def generate_MSAandPAEplots(outDir):

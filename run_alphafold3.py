@@ -59,8 +59,13 @@ def parse_args():
   parser.add_argument(
     '--json_template', default  =  "/wynton/group/krogan/mgordon/data/af3_template.json",
     help = "JSON template to be populated for AF runs")  
+
+  parser.add_argument(
+    '--blockChainMSA', type = bool, required = False, default = False,
+    help = 'Add padding to the unpaired MSAs (By default AF3 concatenates unpaired MSAs from different chains).\nNote: this will reduce unpaired MSA depth by 1/N chains')
     
   # dont think this is needed anymore...  
+  # maybe reuse, should just look for the input json in the outDir
   parser.add_argument(
     '--setup_job', type = str_to_bool, default = True,
     help = "Disable to skip the setup steps and run inference only")
@@ -190,7 +195,8 @@ def main():
                                                  alignmentRepo=args.alignmentRepo,
                                                  nSeeds=args.nSeeds,
                                                  json_template=args.json_template,
-                                                 output_dir=args.output_dir
+                                                 output_dir=args.output_dir,
+                                                 blockChainMSA=args.blockChainMSA
                                                  )
   
   print(f'Running AF on following input:\n{args.json_path}')
@@ -238,8 +244,6 @@ def main():
   elif args.use_a100_80gb_settings:
     singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_80gb.sif'
   else:
-    #singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_40gb_dec_4_2024.sif'
-    # test env
     singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/testing/af3_env/af3_env_mg_dev'
     #singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/script/af3_40gb_dec_4_2024_sandbox'
 
@@ -253,7 +257,7 @@ def main():
         ] + command_args
   cmd = ' '.join(subprocess_args)
 
-  print (cmd)
+  print(f"\nAF3 command executed:\n{cmd}\n")
 
   from subprocess import run
   import sys
@@ -263,12 +267,18 @@ def main():
       executable = '/bin/csh',
       check = True)
 
-  print('Storing MSAs...')
   seqlist = os.path.basename(args.json_path).split(".af3_input.json")[0].split("__")
   runOutdir = Alphafold3_utils.af3_alphaFoldRunOutputDirectory(seqlist, args.output_dir)
 
-  Alphafold3_utils.af3_captureMSAs(output_dir=runOutdir, 
-                                   alignmentRepo=args.alignmentRepo)
+  # for now only enable MSA recovery if blockChain unset (dont want to include these padded MSA in our repo....)
+  # TODO move the recovery function to before AF inference,
+  #  may need to modify source code...
+  if args.blockChainMSA:
+    print(f"blockChainMSA is enabled. Not extracting MSAs..")
+  else:
+    print(f"Recovering MSAs and saving to {args.alignmentRepo}...")
+    Alphafold3_utils.af3_captureMSAs(output_dir=runOutdir, 
+                                     alignmentRepo=args.alignmentRepo)
   
   print('')
   print('Extracting model PTM & iPTM scores...')
@@ -283,11 +293,5 @@ def main():
   print('plotting inter-chain distances...')
   Alphafold3_utils.plot_interChainDistances(outDir=runOutdir)
 
-  # TODO 
-  # add in pDockQ recovery, MSA pairing and add the pLDDT trend above the MSA plot
-  #print('Calculating pDockq scores..'
-  #import pDockq_utils
-  #chain_coords, chain_plddt = pDockq_utils.read_cif('/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/output/ASD_B2AI_PairedMSAOnly/pim1__tacc3/pim1__tacc3_model.cif')
-  # need to set up; loop over the output models, capture the pDockq score and append to the output file
 if __name__ == '__main__':
   main()
