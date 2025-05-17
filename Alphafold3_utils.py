@@ -18,8 +18,6 @@ import subprocess
 import pDockq_utils as pdq
 import MSApairing_utils as mp
 
-
-
 # extract name from header after the ID component |sp|tr|up, else return complete string
 def nameFromHeader (header):
   pipeParts = header[1:].split("|") #skips > and splits on |
@@ -49,7 +47,6 @@ def read_fasta(path):
         assert currentName != "", "Unexpected format, empty sequence name or sequence data before first >"
         allSeqs[currentName] = allSeqs[currentName] + line
   return allSeqs, namesInOrder
-
 
 # given a sequence get the hex and check alignment repo for matching folder
 # if found, check the input sequence matches the query in the a3m file
@@ -84,7 +81,7 @@ def AF3_getMSADirectoryForSequence(sequence, alignmentRepo, MSAType='unpaired'):
                         with open(dir+'/'+msa, 'r') as a3m:
                           if 'unpaired' in msa:
                             print('Preparing unpaired MSA')
-                            next(a3m)  # Skip A3M header
+                            #next(a3m)  # Skip A3M header... commenting out this line as fixing MSA
                             a3m = a3m.read()
                             return(a3m)
                           else: 
@@ -291,7 +288,6 @@ def af3_setupJob(job_id,
         return(outDir+'/'+af3_json_template['name']+'.af3_input.json')
     
 # postProcessing work
-# need to revisit
 # After pipeline completes, recover the MSA from the AF3 output directory and store in alignmentRepo
 # check for chainA and chainB and use that naming in the output
 def af3_captureMSAs(output_dir, alignmentRepo):
