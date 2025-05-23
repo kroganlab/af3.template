@@ -44,3 +44,8 @@ This checks for the existance of the top scoring model, and prints the name of t
 find ./outputDir -maxdepth 1 -type d '!' -exec test -e "{}/ranking_scores.csv" ';' -print | cut -d '/' -f3 | awk '{FS="__";OFS=","}  {print(NR-1,toupper($1),toupper($2))}' > ./AlphaFoldJobList_remainingRuns.csv
 ```
 Be sure to edit the `af.jobs.sh` script and extend the job runtime beyond two hours to avoid another timeout!
+
+4. A handy one-liner for collating all summaryScores.csv into a single file with only a single header:
+```
+awk -FS, 'BEGIN{FS=","} NR == 1 || $1 != "model"  { print }' output/*/*_summaryScores.csv > AllSummaryScores.csv
+```
