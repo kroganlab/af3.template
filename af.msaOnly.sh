@@ -1,14 +1,14 @@
 #!/bin/env bash
 #
-#$ -q !gpu.q
+#$ -q member.q
 #$ -N af3.msaOnly
 #$ -cwd
-#$ -l h_rt=24:00:00
-#$ -l mem_free=124G
-#$ -l scratch=80G
-#$ -l compute_cap=80
+#$ -l h_rt=48:00:00 #extend as long as needed
+#$ -l mem_free=10G
+#s -pe smp 12
+##$ -l scratch=80G
 #$ -j y
-#$ -o /wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/output/jobLogs/$JOB_NAME-$JOB_ID-$TASK_ID.log
+#$ -o ./jobLogs/$JOB_NAME-$JOB_ID-$TASK_ID.log
 
 #$ -t 1-16           # CHANGE THIS - match numbers in jobTable  ## job array with xx tasks
 
@@ -24,21 +24,20 @@ t0=$(date --rfc-3339=seconds)
 echo "QUEUE: $QUEUE"
 
 echo ./run_alphafold3.py \
-	--jobTable=/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/data/2024_12_17_af.genMSA.jobtable.csv \
+	--jobTable=./pten.jobTable.txt \
 	--job_id=$taskID \
-	--master_fasta=/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/data/121624_HIV.HS.uniprot.seqs.fa \
-	--output_dir=/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/output/HIV_HS \
+	--master_fasta=./pten_preys.fa \
+	--output_dir=./output \
 	--nSeeds=5 \
 	--run_inference=False
 	
-
-./run_alphafold3.py \
-	--jobTable=/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/data/2024_12_17_af.genMSA.jobtable.csv \
+echo ./run_alphafold3.py \
+	--jobTable=./pten.jobTable.txt \
 	--job_id=$taskID \
-	--master_fasta=/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/data/121624_HIV.HS.uniprot.seqs.fa \
-	--output_dir=/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/output/HIV_HS \
+	--master_fasta=./pten_preys.fa \
+	--output_dir=./output \
 	--nSeeds=5 \
-	--run_inference=False 
+	--run_inference=False
 
 t1=$(date --rfc-3339=seconds)
 echo "Duration: $t0 -- $t1"
