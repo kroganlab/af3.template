@@ -218,10 +218,14 @@ def af3_setupJob(job_id,
 
     if (setup_job):  
         # prepare the output directory
+        original_umask = os.umask(0)
         try:
-            os.makedirs(outDir)
+            os.makedirs(outDir, mode = 0o775)
         except FileExistsError:
+            os.chmod(outDir, mode = 0o775)
             pass  
+        finally:
+            os.umask(original_umask)
            
         # read in the empty template 
         print('Preparing json input...\n')
@@ -329,7 +333,9 @@ def af3_captureMSAs(output_dir, alignmentRepo):
             if os.path.isdir(outDir):
               print(f"Directory exists: {outDir}\nNot overwriting")
             else:
-              os.makedirs(outDir)
+              original_umask = os.umask(0)
+              os.makedirs(outDir, mode = 0o775)
+              os.umask(original_umask)
               prot_idx = chainIDs.index(bm['id'])
               prot_name = seqs[prot_idx]
               print(f"Saving MSA and template files for {prot_name} in {outDir}...")
@@ -457,8 +463,10 @@ def af3_extractFeaturesfromAF3JSON(jsonInput, msaDirectory):
       outDir = os.path.join(msaDirectory, subDir, seqHash)
 
       if not os.path.exists(outDir):
-       print(f'No directory found for sequence {name}\nCreating {outDir} to store MSA/template features...')
-       os.makedirs(outDir)
+        print(f'No directory found for sequence {name}\nCreating {outDir} to store MSA/template features...')
+        original_umask = os.umask(0)
+        os.makedirs(outDir, mode = 0o775)
+        os.umask(original_umask)
       else:
        print(f'{name} directory exits:\n{outDir}')
        print(f'Checking directory for paired MSA, unpaired MSA and templates...')
