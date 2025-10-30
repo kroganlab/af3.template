@@ -1,20 +1,10 @@
 #!/usr/bin/python3
 #
-#$ -S /usr/bin/python3
-#$ -q gpu.q
-#$ -N alphafold 
-#$ -cwd
-#$ -l h_rt=2:00:00
-#$ -l mem_free=64G
-#$ -l scratch=50G
-#$ -l compute_cap=80,gpu_mem=40G
-###$ -pe smp 2
 
 import os
 import glob
 import re
 import argparse
-from fileinput import FileInput
 
 """Script to detect and re AlphaFold jobs using the af3.template setup."""
 
@@ -49,17 +39,12 @@ with open(os.path.join(args.work_dir,args.new_jobTable), mode="w", encoding="utf
         rerun_jobs.write(f"{i+1},{ppi.replace('__',',')}\n")
 
 print(f"Copying af3 job submission script...\ncp {os.path.join(args.work_dir, args.jobs_script)} {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
-#os.popen(f"cp {os.path.join(args.work_dir, args.jobs_script)}  {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
-
-#os.popen(f"sed -i 's/#$ -l h_rt=2:00:00/#$ -l h_rt={args.new_runtime}/g' {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
-#os.popen(f"sed -i -E 's/[#][$] -N.+/#$ -N resubmit/g' {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
-#os.popen(f"sed -i -E 's/--jobTable=.+/--jobTable={os.path.join(args.work_dir, args.new_jobTable)}/g' {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
 
 # regex matches with replacements
 mod_rgx = [(r"^#\$ -l h_rt=.+", f"#$ -l h_rt={args.new_runtime}\n"),
-           (r"^#\$ -t.+", f"#$ -t 1-{len(failed_runs)}"),
-           (r"\t--jobTable=.+", f"\t--jobTable {os.path.join(args.work_dir, args.new_jobTable)}\n"),
-           (r"^#\$ -N.+", "#$ -N alphafold_resubmit\n")]
+           (r"^#\$ -t.+", f"#$ -t 1-{len(failed_runs)}\n"),
+           (r"\t--jobTable=.+", f"\t--jobTable {os.path.join(args.work_dir, args.new_jobTable)} \\\n"),
+           (r"^#\$ -N.+", "#$ -N alphafold_resubmit \n")]
 
 with open(os.path.join(args.work_dir,  args.jobs_script), mode="r", encoding="utf-8") as job_in:
     af_job = job_in.readlines() # read in as a list
