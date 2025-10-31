@@ -8,7 +8,7 @@ import argparse
 
 """Script to detect and re AlphaFold jobs using the af3.template setup."""
 
-parser = argparse.ArgumentParser(description='Resubmit failed AlphaFold3 jobs')
+parser = argparse.ArgumentParser(description='Resubmit failed AlphaFold3 jobs from af3.template runs')
 
 parser.add_argument(
     '--work_dir', type = str, required = True,
@@ -28,6 +28,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+# could improve this to check jobLogs for timeouts only...
 failed_runs = glob.glob(os.path.join(args.work_dir, "*.msaOut*"))
 
 print(f"Found {len(failed_runs)} incomplete runs in {args.work_dir}\nResubmitting jobs with runtime increased to {args.new_runtime}")
@@ -40,6 +41,9 @@ with open(os.path.join(args.work_dir,args.new_jobTable), mode="w", encoding="utf
 
 print(f"Copying af3 job submission script...\ncp {os.path.join(args.work_dir, args.jobs_script)} {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
 
+# couldnt find 'easy' way to edit specific lines in file (os.popen sed was messy)
+# instead copy job sub file and modify the lines we want to update
+
 # regex matches with replacements
 mod_rgx = [(r"^#\$ -l h_rt=.+", f"#$ -l h_rt={args.new_runtime}\n"),
            (r"^#\$ -t.+", f"#$ -t 1-{len(failed_runs)}\n"),
@@ -47,7 +51,7 @@ mod_rgx = [(r"^#\$ -l h_rt=.+", f"#$ -l h_rt={args.new_runtime}\n"),
            (r"^#\$ -N.+", "#$ -N alphafold_resubmit \n")]
 
 with open(os.path.join(args.work_dir,  args.jobs_script), mode="r", encoding="utf-8") as job_in:
-    af_job = job_in.readlines() # read in as a list
+    af_job = job_in.readlines() # read in all lines as a list
 
     for line in af_job:
         for rgx, repl in mod_rgx:
@@ -60,4 +64,6 @@ with open(os.path.join(args.work_dir, 'resubmit_jobs.sh'), mode="w", encoding="u
     job_out.writelines(af_job)
 
 print(f"Submitting repeat jobs:\nqsub {os.path.join(args.work_dir, 'resubmit_jobs.sh')}")
+
+# submit repeat jobs to Wynton SGE
 os.popen(f"qsub {os.path.join(args.work_dir, 'resubmit_jobs.sh')}")

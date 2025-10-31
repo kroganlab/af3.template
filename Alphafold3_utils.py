@@ -503,7 +503,7 @@ def updateAF3MSADirectory(AFJsonDir, outputMSADir):
   print(f'Done...')
 
 # generate MSA and PAE plots for the top scoring model per PPI
-def generate_MSAandPAEplots(outDir):
+def generate_MSAandPAEplots(outDir, singularityImg):
 
   msa_file =  glob.glob(outDir+'/'+'*msaOut.txt').pop()
   data_json = glob.glob(outDir+'/'+'*_data.json').pop()
@@ -513,7 +513,9 @@ def generate_MSAandPAEplots(outDir):
 
   print(F'Found files:\n{confidence_json}\n{data_json}\n{msa_file}')
 
-  cmd_args = ['Rscript', 'Visualize_PAEandMSA.R', msa_file, data_json, confidence_json]
+  cmd_args = ['singularity', 'exec', '-B', os.path.abspath(outDir),
+              os.path.abspath(singularityImg),
+              'Rscript', 'Visualize_PAEandMSA.R', msa_file, data_json, confidence_json]
   cmd = ' '.join(cmd_args)
   print("\n")
   print(cmd)
@@ -529,7 +531,7 @@ def generate_MSAandPAEplots(outDir):
   except Exception as error:
     print('Error executing Visualize_PAEandMSA.R:\n {}'.format(error))
 
-def get_interchainContactsPAE(outDir):
+def get_interchainContactsPAE(outDir, singularityImg):
 
   cif_file =  glob.glob(outDir+'/'+'*_model.cif').pop()
   sample_name = os.path.basename(os.path.dirname(cif_file))
@@ -537,7 +539,9 @@ def get_interchainContactsPAE(outDir):
 
   print(F'Found files:\n{confidence_json}\n{cif_file}')
 
-  cmd_args = ['Rscript', 'getContactsPAE.R', cif_file, confidence_json]
+  cmd_args = ['singularity', 'exec', '-B', os.path.abspath(outDir),
+              os.path.abspath(singularityImg),
+              'Rscript', 'getContactsPAE.R', cif_file, confidence_json]
   cmd = ' '.join(cmd_args)
   print("\n")
   print(cmd)
@@ -553,7 +557,7 @@ def get_interchainContactsPAE(outDir):
   except Exception as error:
     print('Error executing getContactsPAE.R:\n {}'.format(error))
 
-def plot_interChainDistances(outDir):
+def plot_interChainDistances(outDir, singularityImg):
 
   cif_file =  glob.glob(outDir+'/'+'*_model.cif').pop()
   sample_name = os.path.basename(os.path.dirname(cif_file))
@@ -561,7 +565,9 @@ def plot_interChainDistances(outDir):
 
   print(F'Found files:\n{confidence_json}\n{cif_file}')
 
-  cmd_args = ['Rscript', 'plotContactsPLDDT.R', cif_file, confidence_json]
+  cmd_args = ['singularity', 'exec', '-B', os.path.abspath(outDir),
+              os.path.abspath(singularityImg),
+              'Rscript', 'plotContactsPLDDT.R', cif_file, confidence_json]
   cmd = ' '.join(cmd_args)
   print("\n")
   print(cmd)

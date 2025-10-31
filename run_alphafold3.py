@@ -63,6 +63,10 @@ def parse_args():
   parser.add_argument(
     '--blockChainMSA', type = bool, required = False, default = False,
     help = 'Add padding to the unpaired MSAs (By default AF3 concatenates unpaired MSAs from different chains).\nNote: this will reduce unpaired MSA depth by 1/N chains')
+  
+  parser.add_argument(
+    '--singularity_R', type = str, required = False, default = '/wynton/group/krogan/mgordon/src/singularity/af3.template-r.pkgs.amd64_latest.sif',
+    help = 'Path to singularity image with R and plotting dependencies installed.')
     
   # dont think this is needed anymore...  
   # maybe reuse, should just look for the input json in the outDir
@@ -286,13 +290,13 @@ def main():
   Alphafold3_utils.af3_captureSummaryScores(output_dir=runOutdir)
   print('')
   print('Generating MSA & PAE plots for top ranking model...')
-  Alphafold3_utils.generate_MSAandPAEplots(outDir=runOutdir)
+  Alphafold3_utils.generate_MSAandPAEplots(outDir=runOutdir, singularityImg=args.singularity_R)
   print('')
   print('Getting inter-chain contacts and PAE...')
-  Alphafold3_utils.get_interchainContactsPAE(outDir=runOutdir)
+  Alphafold3_utils.get_interchainContactsPAE(outDir=runOutdir, singularityImg=args.singularity_R)
   print('')
   print('plotting inter-chain distances...')
-  Alphafold3_utils.plot_interChainDistances(outDir=runOutdir)
+  Alphafold3_utils.plot_interChainDistances(outDir=runOutdir, singularityImg=args.singularity_R)
 
 if __name__ == '__main__':
   main()
