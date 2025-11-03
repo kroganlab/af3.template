@@ -67,7 +67,15 @@ def parse_args():
   parser.add_argument(
     '--singularity_R', type = str, required = False, default = '/wynton/group/krogan/mgordon/src/singularity/af3.template-r.pkgs.amd64_latest.sif',
     help = 'Path to singularity image with R and plotting dependencies installed.')
-    
+  
+  parser.add_argument(
+    '--ipsae_dist_threshold', type = int, required = False, default = 8,
+    help = 'Distance threshold (Angstrom) for IPSAE calculation')
+  
+  parser.add_argument(
+    '--ipsae_pae_threshold', type = int, required = False, default = 10,
+    help = 'Pairwise alignment error (PAE) for IPSAE calculation')
+        
   # dont think this is needed anymore...  
   # maybe reuse, should just look for the input json in the outDir
   parser.add_argument(
@@ -286,9 +294,22 @@ def main():
                                      alignmentRepo=args.alignmentRepo)
   
   print('')
+  print('Running post-processing steps on AF model outputs...')
+  print('')
+
+  print('')
+  print('Capturing model scores (iPSAE, iPTM etc.)...')
+  Alphafold3_utils.get_summaryScoresPlusIPSAE(outDir=runOutdir,
+                                              singularityImg=singularity_image_path,
+                                              distanceThreshold=str(args.ipsae_dist_threshold),
+                                              paeThreshold=str(args.ipsae_pae_threshold))
+  print('')
   print('Extracting model PTM & iPTM scores...')
   Alphafold3_utils.af3_captureSummaryScores(output_dir=runOutdir)
   print('')
+
+  # some other function to combine both model level scores?
+
   print('Generating MSA & PAE plots for top ranking model...')
   Alphafold3_utils.generate_MSAandPAEplots(outDir=runOutdir, singularityImg=args.singularity_R)
   print('')
@@ -297,6 +318,7 @@ def main():
   print('')
   print('plotting inter-chain distances...')
   Alphafold3_utils.plot_interChainDistances(outDir=runOutdir, singularityImg=args.singularity_R)
+  print('')
 
 if __name__ == '__main__':
   main()

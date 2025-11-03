@@ -18,6 +18,7 @@ import subprocess
 import pDockq_utils as pdq
 import MSApairing_utils as mp
 
+
 # extract name from header after the ID component |sp|tr|up, else return complete string
 def nameFromHeader (header):
   pipeParts = header[1:].split("|") #skips > and splits on |
@@ -582,3 +583,70 @@ def plot_interChainDistances(outDir, singularityImg):
         check = True)
   except Exception as error:
     print('Error executing plotContactsPLDDT.R:\n {}'.format(error))
+
+def get_summaryScoresPlusIPSAE(outDir, singularityImg, distanceThreshold='10', paeThreshold='10'):
+
+  """Function to run the ipsae.py script and calculate model summary scores."""
+  
+  ppi_path =  glob.glob(os.path.join(outDir, "*seed*"))
+  #ppi_path = list(set([os.path.dirname(ppi) for ppi in ppi_path]))
+  print(f"Found {len(ppi_path)} PPI model directories in {outDir}...\n")
+  ppi_prefix = [ppi.split('/')[-2].upper() for ppi in ppi_path]
+  model_id = [ppi.split('/')[-1] for ppi in ppi_path]
+
+
+  if len(ppi_path) == 0:
+    raise ValueError(f"No PPI model directories found in {outDir}...\nPlease check your path and try again.")
+
+  print (f"Found {len(ppi_path)} PPI model directories to process...\n")
+
+  for i,ppi in enumerate(ppi_path):
+    print(f"Processing PPI model directory: {ppi}...\n")
+    # get the model outputs
+    model_json = os.path.join(ppi, "confidences.json")
+    model_cif = os.path.join(ppi, "model.cif")
+
+    #cmd = f"singularity exec -B {os.path.abspath(args.output_dir)} {args.alphafold_singularity} python ./ipsae.py {model_json} {model_cif} {args.pae_cutoff} {args.dist_cutoff}"  
+    cmd_args = ['singularity', 'exec', '-B', 
+                os.path.abspath(outDir),
+                os.path.abspath(singularityImg),
+                'python', 'ipsae.py',
+                model_json, 
+                model_cif,
+                str(distanceThreshold),
+                str(paeThreshold)]
+    
+    cmd = ' '.join(cmd_args)
+    print('')
+    print(f"Running command:\n{cmd}\n")
+    
+    try:
+      subprocess.run(cmd,
+                    stdout = sys.stdout, 
+                    stderr = sys.stderr,
+                    shell = True,  # module command is a csh alias on Wynton
+                    executable = '/bin/csh',
+                    check = True)
+    
+      # tidy output 
+      print(f"Completed ipsae.py for {ppi_prefix[i]} model {model_id[i]}\nRenaming files...\n")
+
+      if int(distanceThreshold) < 10:
+        distanceThreshold = f"0{str(distanceThreshold)}"  # to avoid issues with file naming
+
+      if int(paeThreshold) < 10:
+        paeThreshold = f"0{str(paeThreshold)}"
+
+      new_prefix = f"{ppi}/{ppi_prefix[i]}.{model_id[i]}.model_{distanceThreshold}_{paeThreshold}"
+      cmd = f"mv {ppi}/model_{distanceThreshold}_{paeThreshold}_byres.txt {new_prefix}_byres.txt; mv {ppi}/model_{distanceThreshold}_{paeThreshold}.txt {new_prefix}.txt; mv {ppi}/model_{distanceThreshold}_{paeThreshold}.pml {new_prefix}.pml"
+      print(f"Renaming files:\n{cmd}\n")
+
+      subprocess.run(cmd,
+          stdout = sys.stdout, 
+          stderr = sys.stderr,
+          shell = True,  # module command is a csh alias on Wynton
+          executable = '/bin/csh',
+          check = True)
+    
+    except Exception as error:
+      print('Error:\n {}'.format(error))
