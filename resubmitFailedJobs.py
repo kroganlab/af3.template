@@ -2,6 +2,7 @@
 #
 
 import os
+import subprocess
 import glob
 import re
 import argparse
@@ -29,19 +30,24 @@ parser.add_argument(
 args = parser.parse_args()
 
 # could improve this to check jobLogs for timeouts only...
-failed_runs = glob.glob(os.path.join(args.work_dir, "*.msaOut*"))
+#failed_runs = glob.glob(os.path.join(args.work_dir, "*.msaOut*"))
+fname_cmd = "grep -L 'Duration:' ./jobLogs/* | xargs -I{}  grep -m1 \"__\" {} | awk 'BEGIN{FS=\"/\"} {print $2}'"
+print(f"Finding failed runs from jobLogs. cmd:\n{fname_cmd}")
+failed_runs =  subprocess.check_output(fname_cmd, shell=True, text=True).split('\n')
+
+# remove duplicates
+failed_runs = set([f.upper() for f in failed_runs if f != ''])
 
 print(f"Found {len(failed_runs)} incomplete runs in {args.work_dir}\nResubmitting jobs with runtime increased to {args.new_runtime}")
 
 with open(os.path.join(args.work_dir,args.new_jobTable), mode="w", encoding="utf-8") as rerun_jobs:
     for i,msa in enumerate(failed_runs):
         msa = msa.strip()
-        ppi = os.path.basename(msa).split(".msaOut")[0]
-        rerun_jobs.write(f"{i+1},{ppi.replace('__',',')}\n")
+        rerun_jobs.write(f"{i+1},{msa.replace('__',',')}\n")
 
 print(f"Copying af3 job submission script...\ncp {os.path.join(args.work_dir, args.jobs_script)} {os.path.join(args.work_dir, 'resubmit_jobs.sh')}") 
 
-# couldnt find 'easy' way to edit specific lines in file (os.popen sed was messy)
+# couldnt find 'easy' way to edit specific lines in place (os.popen sed was messy)
 # instead copy job sub file and modify the lines we want to update
 
 # regex matches with replacements
@@ -51,7 +57,7 @@ mod_rgx = [(r"^#\$ -l h_rt=.+", f"#$ -l h_rt={args.new_runtime}\n"),
            (r"^#\$ -N.+", "#$ -N alphafold_resubmit \n")]
 
 with open(os.path.join(args.work_dir,  args.jobs_script), mode="r", encoding="utf-8") as job_in:
-    af_job = job_in.readlines() # read in all lines as a list
+    af_job = job_in.readlines() # read in all lines
 
     for line in af_job:
         for rgx, repl in mod_rgx:
