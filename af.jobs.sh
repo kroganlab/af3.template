@@ -1,7 +1,7 @@
 #!/bin/env bash
 #
 #$ -q gpu.q
-#$ -N af3   # CHANGE THIS -- any name you want
+#$ -N pipeline.test   # CHANGE THIS -- any name you want
 #$ -cwd
 ###$ -l h_rt=24:00:00
 #$ -l h_rt=2:00:00
@@ -11,7 +11,7 @@
 #$ -j y
 #$ -o ./jobLogs/$JOB_NAME-$JOB_ID-$TASK_ID.log
 
-#$ -t 1-47     # CHANGE THIS - match numbers in jobTable  ## job array with xx tasks
+#$ -t 1-4    # CHANGE THIS - match numbers in jobTable  ## job array with xx tasks
 
 # if not running with sge task array, set to 5
 taskID=${SGE_TASK_ID:-5}
@@ -29,19 +29,22 @@ echo "SGE_GPU: $SGE_GPU"
 export CUDA_VISIBLE_DEVICES=$SGE_GPU
 
 echo ./run_alphafold3.py \
-	--jobTable=AlphaFoldJobList.csv \
+	--jobTable=./pten.jobTable.txt \
 	--job_id=$taskID \
-	--master_fasta=masterFasta.fasta \
-	--output_dir=./output \
+	--master_fasta=./pten_preys.fa \
+	--output_dir=./test.output \
+	--ipsae_pae_threshold=10 \
+	--ipsae_dist_threshold=10 \
 	--nSeeds=5
 
 ./run_alphafold3.py \
-	--jobTable=AlphaFoldJobList.csv \
+	--jobTable=./pten.jobTable.txt \
 	--job_id=$taskID \
-	--master_fasta=masterFasta.fasta \
-	--output_dir=./output \
+	--master_fasta=./pten_preys.fa \
+	--output_dir=./test.output \
+	--ipsae_pae_threshold=10 \
+	--ipsae_dist_threshold=10 \
 	--nSeeds=5
 
 t1=$(date --rfc-3339=seconds)
 echo "Duration: $t0 -- $t1"
-

@@ -632,13 +632,17 @@ def get_summaryScoresPlusIPSAE(outDir, singularityImg, distanceThreshold='10', p
       print(f"Completed ipsae.py for {ppi_prefix[i]} model {model_id[i]}\nRenaming files...\n")
 
       if int(distanceThreshold) < 10:
-        distanceThreshold = f"0{str(distanceThreshold)}"  # to avoid issues with file naming
+        str_distanceThreshold = f"0{str(distanceThreshold)}"  # to avoid issues with file naming
+      else:
+        str_distanceThreshold = str(distanceThreshold)
 
       if int(paeThreshold) < 10:
-        paeThreshold = f"0{str(paeThreshold)}"
+        str_paeThreshold = f"0{str(paeThreshold)}"
+      else:
+        str_paeThreshold = str(paeThreshold)
 
-      new_prefix = f"{ppi}/{ppi_prefix[i]}.{model_id[i]}.model_{distanceThreshold}_{paeThreshold}"
-      cmd = f"mv {ppi}/model_{distanceThreshold}_{paeThreshold}_byres.txt {new_prefix}_byres.txt; mv {ppi}/model_{distanceThreshold}_{paeThreshold}.txt {new_prefix}.txt; mv {ppi}/model_{distanceThreshold}_{paeThreshold}.pml {new_prefix}.pml"
+      new_prefix = f"{ppi}/{ppi_prefix[i]}.{model_id[i]}.model_{str_distanceThreshold}_{str_paeThreshold}"
+      cmd = f"mv {ppi}/model_{str_distanceThreshold}_{str_paeThreshold}_byres.txt {new_prefix}_byres.txt; mv {ppi}/model_{str_distanceThreshold}_{str_paeThreshold}.txt {new_prefix}.txt; mv {ppi}/model_{str_distanceThreshold}_{str_paeThreshold}.pml {new_prefix}.pml"
       print(f"Renaming files:\n{cmd}\n")
 
       subprocess.run(cmd,
