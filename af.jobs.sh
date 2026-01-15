@@ -13,6 +13,12 @@
 
 #$ -t 1-4    # CHANGE THIS - match numbers in jobTable  ## job array with xx tasks
 
+# # CHANGE THESE PATHS AS NEEDED
+MASTER_FASTA=./pten_preys.fa
+JOB_TABLE=./pten.jobTable.txt
+OUTPUT_DIR=./output
+
+
 # if not running with sge task array, set to 5
 taskID=${SGE_TASK_ID:-5}
 
@@ -29,19 +35,19 @@ echo "SGE_GPU: $SGE_GPU"
 export CUDA_VISIBLE_DEVICES=$SGE_GPU
 
 echo ./run_alphafold3.py \
-	--jobTable=./pten.jobTable.txt \
+	--jobTable=$JOB_TABLE \
 	--job_id=$taskID \
-	--master_fasta=./pten_preys.fa \
-	--output_dir=./test.output \
+	--master_fasta=$MASTER_FASTA \
+	--output_dir=$OUTPUT_DIR \
 	--ipsae_pae_threshold=10 \
 	--ipsae_dist_threshold=10 \
 	--nSeeds=5
 
 ./run_alphafold3.py \
-	--jobTable=./pten.jobTable.txt \
+	--jobTable=$JOB_TABLE \
 	--job_id=$taskID \
-	--master_fasta=./pten_preys.fa \
-	--output_dir=./test.output \
+	--master_fasta=$MASTER_FASTA \
+	--output_dir=$OUTPUT_DIR \
 	--ipsae_pae_threshold=10 \
 	--ipsae_dist_threshold=10 \
 	--nSeeds=5
