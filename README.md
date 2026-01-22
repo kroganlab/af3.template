@@ -1,8 +1,10 @@
 ## Krogan Lab Alphafold 3 pipeline compatible with UCSF Wynton HPC 
 
 #### Quickstart: Running Pipeline
+0. Ssh into your Wynton account and then into a dev node. If you do not have a Wynton account and need to request one, see [this link](https://wynton.ucsf.edu/hpc/about/join.html).
+   If you're unfamiliar with Wynton, there is very good documentation, you can start [here](https://wynton.ucsf.edu/hpc/get-started/access-cluster.html); read at least the first 4 tabs on the "Get Started" header before continuing. 
 
-1. Clone the github repo to a Wynton working directory
+3. Clone the github repo to a Wynton working directory
 ```
 git clone https://github.com/kroganlab/af3.template.git 
 ```
