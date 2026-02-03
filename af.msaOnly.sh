@@ -12,6 +12,12 @@
 
 #$ -t 1-16           # CHANGE THIS - match numbers in jobTable  ## job array with xx tasks
 
+# # CHANGE THESE PATHS AS NEEDED
+MASTER_FASTA=./pten_preys.fa
+JOB_TABLE=./pten.jobTable.txt
+OUTPUT_DIR=./output
+
+
 # if not running with sge task array, set to 5
 taskID=${SGE_TASK_ID:-5}
 
@@ -24,20 +30,21 @@ t0=$(date --rfc-3339=seconds)
 echo "QUEUE: $QUEUE"
 
 echo ./run_alphafold3.py \
-	--jobTable=./pten.jobTable.txt \
+	--jobTable=$JOB_TABLE \
 	--job_id=$taskID \
-	--master_fasta=./pten_preys.fa \
-	--output_dir=./output \
+	--master_fasta=$MASTER_FASTA \
+	--output_dir=$OUTPUT_DIR \
 	--nSeeds=5 \
 	--run_inference=False
 	
-echo ./run_alphafold3.py \
-	--jobTable=./pten.jobTable.txt \
+
+./run_alphafold3.py \
+	--jobTable=$JOB_TABLE \
 	--job_id=$taskID \
-	--master_fasta=./pten_preys.fa \
-	--output_dir=./output \
+	--master_fasta=$MASTER_FASTA \
+	--output_dir=$OUTPUT_DIR \
 	--nSeeds=5 \
 	--run_inference=False
-
+	
 t1=$(date --rfc-3339=seconds)
 echo "Duration: $t0 -- $t1"
