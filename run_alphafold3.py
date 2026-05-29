@@ -45,11 +45,11 @@ def parse_args():
     help = "path to csv formatte file with columns ID, seq1.name, seq2.name, seq3.name etc..")  
   
   parser.add_argument(
-    '--alignmentRepo', default  =  "/wynton/group/krogan/mgordon/data/AF3_A3M_MSAs",
+    '--alignmentRepo', default  =  "/mnt/scratch/user/anvenkatesh/af3_data_from_wynton/AF3_A3M_MSAs",
     help = "path to directory containing previously generated MSAs in A3M format")
   
   parser.add_argument(
-    '--dependenciesRepo', default  =  "/wynton/group/krogan/mgordon/data",
+    '--dependenciesRepo', default  =  "/mnt/scratch/user/anvenkatesh/af3_data_from_wynton",
     help = "path repo containing dependencies for AF3 pipeline")
   
   parser.add_argument(
@@ -57,7 +57,7 @@ def parse_args():
     help = "Number of random seeds for initalizations for AF model")
   
   parser.add_argument(
-    '--json_template', default  =  "/wynton/group/krogan/mgordon/data/af3_template.json",
+    '--json_template', default  =  "/mnt/scratch/user/anvenkatesh/af3_data_from_wynton/af3_template.json",
     help = "JSON template to be populated for AF runs")  
 
   parser.add_argument(
@@ -65,7 +65,7 @@ def parse_args():
     help = 'Add padding to the unpaired MSAs (By default AF3 concatenates unpaired MSAs from different chains).\nNote: this will reduce unpaired MSA depth by 1/N chains')
   
   parser.add_argument(
-    '--singularity_R', type = str, required = False, default = '/wynton/group/krogan/mgordon/src/singularity/af3.template-r.pkgs.amd64_latest.sif',
+    '--singularity_R', type = str, required = False, default = '/home/remote/yzhou5/af3.template-r.pkgs.amd64_latest.sif',
     help = 'Path to singularity image with R and plotting dependencies installed.')
   
   parser.add_argument(
@@ -101,10 +101,10 @@ def parse_args():
     help='Paths to a directory where the results will be saved')
 
   from os.path import expanduser, isdir
-  # AF3 weights taken from /wynton/home/ferrin/goddard/af3_weights
+  # AF3 weights taken from /mnt/scratch/user/anvenkatesh/af3_weights
   parser.add_argument(
     '--model_dir',
-    default = '/wynton/home/ferrin/goddard/af3_weights',
+    default = '/mnt/scratch/user/anvenkatesh/af3_weights',
     help='Path to the model to use for inference.')
 
   parser.add_argument(
@@ -136,7 +136,7 @@ def parse_args():
 
   parser.add_argument(
     '--db_dir',
-    default = '/wynton/group/databases/alphafold3',
+    default = '/mnt/scratch/user/anvenkatesh/afdbs/alphafold3',
     help = 'Path to the directory containing the databases.',
   )
 
@@ -165,7 +165,7 @@ def parse_args():
 
   import os
   parser.add_argument(
-    '--gpu_devices', default=os.environ.get('SGE_GPU', '0'),
+    '--gpu_devices', default=os.environ.get('CUDA_VISIBLE_DEVICES', '0'),
     help='Comma separated list GPU identifiers to set environment variable CUDA_VISIBLE_DEVICES.')
 
   parser.add_argument(
@@ -254,13 +254,13 @@ def main():
   if args.singularity_image_path:
     singularity_image_path = args.singularity_image_path
   elif args.use_a100_80gb_settings:
-    singularity_image_path = '/wynton/home/ferrin/goddard/alphafold_singularity/alphafold3_80gb.sif'
+    singularity_image_path = '/home/remote/yzhou5/alphafold3_80gb_jan_30_2025.sif'
   else:
-    singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/testing/af3_env/af3_env_mg.sif'
+    singularity_image_path = '/home/remote/yzhou5/af3_env_mg.sif'
     #singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/testing/af3_env/af3_env_mg_dev'
     #singularity_image_path = '/wynton/group/krogan/mgordon/projects/112624_MGordon_AF3_pipeline/script/af3_40gb_dec_4_2024_sandbox'
 
-  subprocess_args = ['singularity',
+  subprocess_args = ['apptainer',
           'exec',
           '--nv',  # Use Nvidia container library to use CUDA
           '-B "%s"' % ','.join(bind_directories),
@@ -274,7 +274,7 @@ def main():
 
   from subprocess import run
   import sys
-  run('module load cuda/12.2 ; %s' % cmd,
+  run(cmd,
       stdout = sys.stdout, stderr = sys.stderr,
       shell = True,  # module command is a csh alias on Wynton
       executable = '/bin/csh',

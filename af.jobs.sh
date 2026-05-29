@@ -1,38 +1,42 @@
 #!/bin/env bash
 #
-#$ -q gpu.q
-#$ -N pipeline.test   # CHANGE THIS -- any name you want
-#$ -cwd
-###$ -l h_rt=24:00:00
-#$ -l h_rt=2:00:00
-#$ -l mem_free=64G
-#$ -l scratch=50G
-#$ -l compute_cap=80,gpu_mem=40G
-#$ -j y
-#$ -o ./jobLogs/$JOB_NAME-$JOB_ID-$TASK_ID.log
-
-#$ -t 1-4    # CHANGE THIS - match numbers in jobTable  ## job array with xx tasks
+#SBATCH --partition=gpu
+#SBATCH --job-name=af3_pipeline
+#SBATCH --time=02:00:00
+#SBATCH --mem=64G
+#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
+##SBATCH --gres=gpu:nvidia_h100_nvl:1
+#SBATCH --output=./jobLogs/%x-%j-%a.log
+#SBATCH --array=1-4
 
 # # CHANGE THESE PATHS AS NEEDED
-MASTER_FASTA=./pten_preys.fa
-JOB_TABLE=./pten.jobTable.txt
+MASTER_FASTA=./masterFasta.fasta
+JOB_TABLE=./AlphaFoldJobList.csv
 OUTPUT_DIR=./output
 
 
 # if not running with sge task array, set to 5
-taskID=${SGE_TASK_ID:-5}
+taskID=${SLURM_ARRAY_TASK_ID:-5}
 
 # necessary for the GetContactsPAE.R
+# necessary for the GetContactsPAE.R
+module purge
+conda deactivate 2>/dev/null || true
 module load CBI
 module load r
+module load nvidia/cuda/12.9.1
+module load apptainer/1.4.1
 #
 # Compute cap for A100 GPU is 8.0 (40 or 80 GB), for A40 GPU is 8.6 (48 GB).
 #
 t0=$(date --rfc-3339=seconds)
 
-echo "QUEUE: $QUEUE"
-echo "SGE_GPU: $SGE_GPU"
-export CUDA_VISIBLE_DEVICES=$SGE_GPU
+# optional: check GPU
+echo "SLURM_JOB_ID: $SLURM_JOB_ID"
+echo "SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"
+echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
+nvidia-smi
 
 echo ./run_alphafold3.py \
 	--jobTable=$JOB_TABLE \
