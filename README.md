@@ -1,7 +1,7 @@
 ## Krogan Lab Alphafold 3 pipeline compatible with UCSF CoreHPC
 
 #### Quickstart: Running Pipeline
-0. Ssh into your CoreHPC account ```ssh <campus username>@chpc-ucsf-bastion-vm1.corehpc.ucsf.edu``` and then from the user access bastion bastion use ssh to connect to the CoreHPC login node ```ssh chpc-ucsf-login-vm1```. If you do not have a CoreHPC account and need to request one, see [this link](https://CoreHPC.ucsf.edu/hpc/about/join.html).
+0. Ssh into your CoreHPC account ```ssh <campus username>@chpc-ucsf-bastion-vm1.corehpc.ucsf.edu``` and then from the user access bastion bastion use ssh to connect to the CoreHPC login node ```ssh chpc-ucsf-login-vm1```.
    If you're unfamiliar with CoreHPC, there is very good documentation, you can start with two pdfs in this repo. 
 
 3. Clone the github repo to a CoreHPC working directory
