@@ -1,10 +1,10 @@
-## Krogan Lab Alphafold 3 pipeline compatible with UCSF Wynton HPC 
+## Krogan Lab Alphafold 3 pipeline compatible with UCSF CoreHPC
 
 #### Quickstart: Running Pipeline
-0. Ssh into your Wynton account and then into a dev node. If you do not have a Wynton account and need to request one, see [this link](https://wynton.ucsf.edu/hpc/about/join.html).
-   If you're unfamiliar with Wynton, there is very good documentation, you can start [here](https://wynton.ucsf.edu/hpc/get-started/access-cluster.html); read at least the first 4 tabs on the "Get Started" header before continuing. 
+0. Ssh into your CoreHPC account ```ssh <campus username>@chpc-ucsf-bastion-vm1.corehpc.ucsf.edu``` and then from the user access bastion bastion use ssh to connect to the CoreHPC login node ```ssh chpc-ucsf-login-vm1```. If you do not have a CoreHPC account and need to request one, see [this link](https://CoreHPC.ucsf.edu/hpc/about/join.html).
+   If you're unfamiliar with CoreHPC, there is very good documentation, you can start with two pdfs in this repo. 
 
-3. Clone the github repo to a Wynton working directory
+3. Clone the github repo to a CoreHPC working directory
 ```
 git clone https://github.com/kroganlab/af3.template.git 
 ```
@@ -14,7 +14,7 @@ git clone https://github.com/kroganlab/af3.template.git
 cd  af3.template
 ```
 
-2b. *First time only you run this on Wynton*, make sure you have the R packages you need. This is only necessary for some of the post processing after AlphaFold completes.
+2b. *First time only you run this on CoreHPC*, make sure you have the R packages you need. This is only necessary for some of the post processing after AlphaFold completes.
 
 ```
 bash installPackages.sh
@@ -26,9 +26,9 @@ bash installPackages.sh
 
 5. Edit submission script `af.jobs.sh`, most importantly the number of tasks, but also new file names or job names if desired
 
-6. Submit job with `qsub af.jobs.sh`
+6. Submit job with `sbatch af.jobs.sh`
 
-7. View queue and job status with `qstat`
+7. View queue and job status with `squeue -u $USER`
 
 #### Postprocessing 
 
